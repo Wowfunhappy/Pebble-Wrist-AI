@@ -59,6 +59,26 @@ Works with OpenRouter (GPT, Claude, Gemini, Gemma, Llama, Qwen, and more), a Cha
 
 ---
 
+## Hosting the Config page
+
+The watch app opens a **hosted** Settings page; editing `config/index.html` in this
+repo changes nothing for users until that page is redeployed. The URL lives in one
+place, `CONFIG_BASE_URL` near the top of `src/pkjs/pebble-js-app.js`.
+
+A fork must point that constant at its own site, or Settings keeps serving the
+upstream page — which will not have any features added in the fork.
+
+To publish with GitHub Pages: **Settings → Pages → Source: Deploy from a branch**,
+pick the branch holding your `config/` directory and folder **`/ (root)`**. The page
+then appears at `<your Pages URL>/config/`, which is what `CONFIG_BASE_URL` must
+match. A `.nojekyll` file at the repo root keeps Jekyll from rewriting the page.
+
+Prefer a URL that resolves without a redirect. Settings URLs carry the conversation
+payload in the fragment and can approach 500,000 characters; sending that through a
+301 is avoidable risk in the Pebble WebView.
+
+---
+
 ## Codex mode
 
 Codex mode answers from a ChatGPT Plus/Pro/Business plan rather than from OpenAI API

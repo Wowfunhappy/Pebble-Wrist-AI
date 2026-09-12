@@ -25,6 +25,15 @@ var MEMORY_MAX_BYTES = 12000;
 var MEMORY_MAX_ITEMS = 40;
 var MAX_NOTES = 50;
 var TODOIST_API = 'https://api.todoist.com/api/v1';
+// Hosted Config page. Editing config/index.html does not reach users until the
+// page behind this URL is redeployed, so a fork must point this at its own
+// GitHub Pages site or Settings will keep serving the upstream page.
+//   user site with a custom domain : https://<domain>/<repo>/config/
+//   plain project site             : https://<user>.github.io/<repo>/config/
+// Prefer whichever form resolves without a redirect: Settings URLs carry a
+// conversation payload in the fragment that can approach 500,000 characters,
+// and re-sending that through a 301 is avoidable risk in the Pebble WebView.
+var CONFIG_BASE_URL = 'https://jonathanalland.com/Pebble-Wrist-AI/config/';
 var todoistSyncRunning = false;
 var todoistApplyingRemote = false;
 
@@ -4240,7 +4249,7 @@ Pebble.addEventListener('showConfiguration', function() {
     if (watchInfo && watchInfo.platform === 'flint') isFlint = '1';
   } catch (e) {}
 
-  var url = 'https://deusaw.github.io/Pebble-Wrist-AI/config/'
+  var url = CONFIG_BASE_URL
     // iOS Pebble App 没有清理 Config WebView 缓存的入口；每次使用新 URL 绕过缓存。
     + '?config_version=1.5.0-' + Date.now()
     + '&has_key=' + hasKey
