@@ -25,8 +25,8 @@ var MEMORY_MAX_BYTES = 12000;
 var MEMORY_MAX_ITEMS = 40;
 var MAX_NOTES = 50;
 var TODOIST_API = 'https://api.todoist.com/api/v1';
-// Hosted Config page. Editing config/index.html does not reach users until the
-// page behind this URL is redeployed, so a fork must point this at its own
+// Hosted Config page. Editing docs/config/index.html does not reach users until
+// the page behind this URL is redeployed, so a fork must point this at its own
 // GitHub Pages site or Settings will keep serving the upstream page.
 //   user site with a custom domain : https://<domain>/<repo>/config/
 //   plain project site             : https://<user>.github.io/<repo>/config/

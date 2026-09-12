@@ -61,17 +61,19 @@ Works with OpenRouter (GPT, Claude, Gemini, Gemma, Llama, Qwen, and more), a Cha
 
 ## Hosting the Config page
 
-The watch app opens a **hosted** Settings page; editing `config/index.html` in this
-repo changes nothing for users until that page is redeployed. The URL lives in one
-place, `CONFIG_BASE_URL` near the top of `src/pkjs/pebble-js-app.js`.
+The watch app opens a **hosted** Settings page; editing `docs/config/index.html` in
+this repo changes nothing for users until that page is redeployed. The URL lives in
+one place, `CONFIG_BASE_URL` near the top of `src/pkjs/pebble-js-app.js`.
 
 A fork must point that constant at its own site, or Settings keeps serving the
 upstream page — which will not have any features added in the fork.
 
 To publish with GitHub Pages: **Settings → Pages → Source: Deploy from a branch**,
-pick the branch holding your `config/` directory and folder **`/ (root)`**. The page
-then appears at `<your Pages URL>/config/`, which is what `CONFIG_BASE_URL` must
-match. A `.nojekyll` file at the repo root keeps Jekyll from rewriting the page.
+pick your branch and folder **`/docs`**. Pages serves `docs/` as the site root, so
+`docs/config/index.html` is published at `<your Pages URL>/config/` — which is what
+`CONFIG_BASE_URL` must match. Serving from `/docs` rather than `/ (root)` keeps the
+source tree and the release notes out of the published site. `docs/.nojekyll` stops
+Jekyll from rewriting the page.
 
 Prefer a URL that resolves without a redirect. Settings URLs carry the conversation
 payload in the fragment and can approach 500,000 characters; sending that through a
@@ -169,7 +171,7 @@ Accessible via the UP button:
 |-----------|----------|------|
 | `src/c/mdbl.c` | C (Pebble SDK 3) | Watch UI, animation state machine, AppMessage handling |
 | `src/pkjs/pebble-js-app.js` | JavaScript (ES5) | API calls, conversation storage, config, chunked Bluetooth transfer |
-| `config/index.html` | HTML/CSS/JS | Settings page (hosted on GitHub Pages) |
+| `docs/config/index.html` | HTML/CSS/JS | Settings page (hosted on GitHub Pages from `docs/`) |
 
 The watch communicates with the phone over Bluetooth using Pebble's AppMessage protocol. Long responses are chunked into ~256-byte segments and reassembled on the watch. Emery TTS uses one-byte μ-law transport decoded to native 16-bit audio; Flint uses 8-bit PCM. Both use watch→phone flow control. ToDo & Notes, chats, Memory.md, Timeline/Todoist mappings, the incremental sync token, and the durable offline outbox are stored phone-side; strong reminder and Todoist sync Wakeups are persisted on the watch.
 

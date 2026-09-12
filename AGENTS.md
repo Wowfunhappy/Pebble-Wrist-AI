@@ -17,7 +17,10 @@ The Git branch is still named `v1.4.0`; trust `package.json` and the audit docum
 
 - `src/c/mdbl.c`: watch UI, Health data, Wakeup, TTS and AppMessage.
 - `src/pkjs/pebble-js-app.js`: the only supported PebbleKit JS entry point.
-- `config/index.html`: hosted Config source.
+- `docs/config/index.html`: hosted Config source. GitHub Pages publishes `docs/`
+  as the site root, so this file is served at `<Pages URL>/config/`, which is what
+  `CONFIG_BASE_URL` in the PKJS bundle must match. Upstream keeps this file at
+  `config/index.html`; expect a rename when merging from there.
 - `package.json`: UUID, version, target platforms and append-only message-key order.
 - `wscript`: forces the traditional single-file PKJS bundle required by iOS Core Devices.
 
@@ -91,7 +94,7 @@ pending Note command owns the AppMessage path.
 
 ## Config constraints
 
-The app opens `https://deusaw.github.io/Pebble-Wrist-AI/config/` with a cache-busting version parameter. Editing `config/index.html` locally does not update users until the hosted page is deployed.
+The app opens `CONFIG_BASE_URL` (top of `src/pkjs/pebble-js-app.js`) with a cache-busting version parameter. Editing `docs/config/index.html` locally does not update users until the hosted page is deployed. A fork that leaves `CONFIG_BASE_URL` pointing upstream serves the upstream Config page and none of its own Config changes.
 
 Keep existing form element IDs and the `webviewclosed` response schema stable. iOS Config has previously failed because of PKJS loading, cache and URL-size issues.
 
