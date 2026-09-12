@@ -4,7 +4,7 @@
 
 **Wrist AI** lets you talk to any Large Language Model directly from your Pebble. Speak your question, and the response appears on your wrist. Your phone acts as a silent bridge — no server, no cloud relay, no extra apps.
 
-Works with OpenRouter (GPT, Claude, Gemini, Gemma, Llama, Qwen, and more) or your own custom API endpoint.
+Works with OpenRouter (GPT, Claude, Gemini, Gemma, Llama, Qwen, and more), a ChatGPT plan through the Codex backend, or your own custom API endpoint.
 
 ![Platforms](https://img.shields.io/badge/platform-Basalt%20%7C%20Chalk%20%7C%20Diorite%20%7C%20Emery%20%7C%20Flint-blue)
 ![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-green)
@@ -17,6 +17,7 @@ Works with OpenRouter (GPT, Claude, Gemini, Gemma, Llama, Qwen, and more) or you
 - **Multi-Model Switching** — Configure up to 5 models and switch between them directly from your watch. No need to open settings.
 - **Multi-Conversation** — Manage up to 20 concurrent chats. The LLM auto-generates a smart title for each conversation. Switch between them from the watch menu with full context preserved.
 - **Custom API Support** — Use OpenRouter out of the box, or point the app to your own backend / local model server with a custom API URL.
+- **Codex Mode** — Answer from a ChatGPT Plus/Pro/Business plan instead of OpenAI API or OpenRouter credits, by reusing the login the Codex CLI already made. See [Codex mode](#codex-mode). *Beta.*
 - **Conversation Export** — Export any conversation as a structured JSON file (with messages, timestamps, and model info) from the config page.
 - **Font Size & Bold** — Choose from three text sizes (Normal / Large / Extra Large) and toggle bold text for better readability on your wrist.
 - **"Surprise Me" Toggle** — Long-press DOWN for a random prompt, or disable it in settings if you prefer to avoid accidental triggers.
@@ -52,9 +53,50 @@ Works with OpenRouter (GPT, Claude, Gemini, Gemma, Llama, Qwen, and more) or you
 
 1. **Install** — Sideload the `.pbw` file via the Pebble app, or install from the Rebble Appstore.
 2. **Configure** — Open app settings in the Pebble mobile app.
-3. **API Key** — Get a key from [OpenRouter](https://openrouter.ai) and paste it in. Or switch to Custom API mode and enter your own endpoint URL.
+3. **API Key** — Get a key from [OpenRouter](https://openrouter.ai) and paste it in. Or switch to Custom API mode and enter your own endpoint URL, or to Codex mode and paste a Codex login.
 4. **Add Models** — Add model identifiers (e.g., `google/gemma-3-27b-it`) to the model list.
 5. **Start** — Launch the app on your watch and press SELECT to begin.
+
+---
+
+## Codex mode
+
+Codex mode answers from a ChatGPT Plus/Pro/Business plan rather than from OpenAI API
+or OpenRouter credits. It reuses the OAuth login that the Codex CLI stores on your
+computer.
+
+1. On a computer, install the Codex CLI and run `codex login`.
+2. Open `~/.codex/auth.json` (on Windows, `%USERPROFILE%\.codex\auth.json`) and copy
+   the whole file.
+3. In Wrist AI settings, choose **Codex** under API Provider and paste the file into
+   the Codex login box.
+4. Set **Codex model** to a slug your plan accepts — for example `gpt-5.6-terra`,
+   `gpt-5.6-sol` or `gpt-6-astra`. Leave **Reasoning effort** on Low; a watch wants a
+   fast short answer, and higher settings mostly add latency.
+5. Save. The watch shows Ready as soon as the login is stored.
+
+The access token in `auth.json` is short-lived. Wrist AI stores the refresh token
+alongside it and renews the access token on its own, including once automatically if
+the server rejects a token early, so a one-time paste normally keeps working. If you
+paste a bare access token instead of the file, there is nothing to renew with and the
+login dies at its expiry. Settings shows which of the two you have.
+
+**Know what you are getting into:**
+
+- `auth.json` grants access to your ChatGPT account. Treat it like a password. Only
+  Wrist AI's own phone-side storage holds it; it is never placed in a config URL and
+  never written to conversation history or Memory.md.
+- `chatgpt.com/backend-api/codex` is an undocumented first-party endpoint. Using a
+  ChatGPT subscription from a client that is not Codex is not something OpenAI
+  documents as supported, and the endpoint can change or start refusing this app at
+  any time. If that happens, Codex mode stops working — OpenRouter and Custom modes
+  are unaffected.
+- Usage counts against the plan's Codex limits. A depleted plan reports
+  `Codex plan limit reached` on the watch.
+- Web Search is an OpenRouter plugin and is ignored in Codex mode.
+- If the model chosen from the watch menu is an OpenRouter-style `vendor/model` slug,
+  Codex mode substitutes the **Codex model** slug from settings, since the Codex
+  backend rejects prefixed slugs.
 
 ---
 
@@ -100,7 +142,7 @@ Accessible via the UP button:
 ## Architecture
 
 ```
-[Pebble Watch]  <---- Bluetooth ---->  [Phone (PebbleKit JS)]  <---- HTTPS ---->  [OpenRouter / Custom API]
+[Pebble Watch]  <---- Bluetooth ---->  [Phone (PebbleKit JS)]  <---- HTTPS ---->  [OpenRouter / Codex / Custom API]
 ```
 
 | Component | Language | Role |

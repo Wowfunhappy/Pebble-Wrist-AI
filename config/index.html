@@ -122,6 +122,10 @@
     .mode-btn:first-child { border-radius: 6px 0 0 6px; }
     .mode-btn:last-child { border-radius: 0 6px 6px 0; }
     .custom-url-field { display: none; margin-top: 8px; }
+    .codex-field { display: none; margin-top: 8px; }
+    .codex-field textarea { min-height: 84px; font-size: 12px; }
+    .codex-field code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .status.warn { color: var(--danger); }
     .model-item {
       display: flex; align-items: center; padding: 10px;
       background: #fffdfa; border: 1px solid #e4dad1; border-radius: 9px; margin-bottom: 7px;
@@ -243,11 +247,38 @@
      <label>API Provider</label>
      <div class="mode-toggle">
        <div class="mode-btn active" id="mode_openrouter" data-mode="openrouter">OpenRouter</div>
-       <div class="mode-btn" id="mode_custom" data-mode="custom">Custom API</div>
+       <div class="mode-btn" id="mode_codex" data-mode="codex">Codex</div>
+       <div class="mode-btn" id="mode_custom" data-mode="custom">Custom</div>
      </div>
      <div class="custom-url-field" id="custom_url_wrap">
        <input type="url" id="custom_api_url" placeholder="https://api.example.com/v1/chat/completions">
        <div class="hint">OpenAI-compatible endpoint (must accept /v1/chat/completions format)</div>
+     </div>
+     <div class="codex-field" id="codex_wrap">
+       <label>Codex login <span class="beta-badge">Beta</span></label>
+       <textarea id="codex_auth" placeholder='Paste the contents of ~/.codex/auth.json'></textarea>
+       <div class="status" id="codex_status"></div>
+       <div class="hint">
+         Run <code>codex login</code> on a computer, then paste the whole
+         <code>~/.codex/auth.json</code> file here. Requests are then billed to that
+         ChatGPT plan instead of OpenAI API or OpenRouter credits. The saved refresh
+         token renews the login on its own; re-paste the file if the status above says
+         it lapsed. Treat the file like a password — it grants access to your ChatGPT
+         account. This uses an undocumented ChatGPT endpoint that OpenAI does not
+         support for third-party clients and can change without notice. Web Search is
+         OpenRouter-only and is ignored in this mode.
+       </div>
+       <label style="margin-top:8px;display:block">Codex model</label>
+       <input type="text" id="codex_model" placeholder="gpt-5.6-terra">
+       <div class="hint">Any slug your Codex plan accepts, such as gpt-5.6-terra, gpt-5.6-sol or gpt-6-astra. Used whenever the model picked on the watch is an OpenRouter-style vendor/model slug.</div>
+       <label style="margin-top:8px;display:block">Reasoning effort</label>
+       <select id="codex_reasoning_effort">
+         <option value="minimal">Minimal · fastest</option>
+         <option value="low">Low · best for a watch</option>
+         <option value="medium">Medium</option>
+         <option value="high">High · slowest</option>
+       </select>
+       <button type="button" class="btn btn-danger" id="unlink_codex" style="margin-top:10px">Unlink Codex Login</button>
      </div>
     </div>
 
@@ -615,6 +646,13 @@
     var apiMode = getParam('api_mode') || 'openrouter';
     var customApiUrl = getParam('custom_api_url') || '';
 
+    // Codex：手机端只知道"有没有登录"和"什么时候过期"，token 本身从不进入 URL
+    var hasCodexAuth = getParam('has_codex_auth') === '1';
+    var codexCanRefresh = getParam('codex_can_refresh') === '1';
+    var codexExpiresAt = parseInt(getParam('codex_expires_at'), 10) || 0;
+    var codexModel = getParam('codex_model') || 'gpt-5.6-terra';
+    var codexEffort = getParam('codex_reasoning_effort') || 'low';
+
     // 显示设置
     var fontSize = getParam('font_size') || '0';
     var fontBold = getParam('font_bold') === '1';
@@ -654,18 +692,45 @@
     } catch (memoryParseError) {}
     var originalMemoryMarkdown = memoryMarkdown;
 
+    function renderCodexStatus() {
+      var el = document.getElementById('codex_status');
+      if (!hasCodexAuth) {
+        el.className = 'status warn';
+        el.textContent = 'Not linked. Paste auth.json above.';
+        return;
+      }
+      var lapsed = codexExpiresAt > 0 && codexExpiresAt <= Date.now();
+      if (lapsed && !codexCanRefresh) {
+        el.className = 'status warn';
+        el.textContent = 'Linked, but the login lapsed and cannot renew itself. Paste auth.json again.';
+        return;
+      }
+      el.className = 'status';
+      el.textContent = codexCanRefresh ?
+        'Linked and renewing itself. Leave blank to keep.' :
+        'Linked without a refresh token; it will stop working when it expires.';
+    }
+
     function applyApiMode(mode) {
       apiMode = mode;
       var btnOR = document.getElementById('mode_openrouter');
+      var btnCX = document.getElementById('mode_codex');
       var btnCU = document.getElementById('mode_custom');
       var urlWrap = document.getElementById('custom_url_wrap');
+      var codexWrap = document.getElementById('codex_wrap');
       var keyWrap = document.getElementById('api_key_wrap');
       var keyInput = document.getElementById('api_key');
       btnOR.className = 'mode-btn';
+      btnCX.className = 'mode-btn';
       btnCU.className = 'mode-btn';
       urlWrap.style.display = 'none';
+      codexWrap.style.display = 'none';
       keyWrap.style.display = 'none';
-      if (mode === 'custom') {
+      if (mode === 'codex') {
+        btnCX.className = 'mode-btn active';
+        codexWrap.style.display = 'block';
+        renderCodexStatus();
+      } else if (mode === 'custom') {
         btnCU.className = 'mode-btn active';
         urlWrap.style.display = 'block';
         keyWrap.style.display = 'block';
@@ -678,10 +743,16 @@
     }
 
     document.getElementById('mode_openrouter').addEventListener('click', function() { applyApiMode('openrouter'); });
+    document.getElementById('mode_codex').addEventListener('click', function() { applyApiMode('codex'); });
     document.getElementById('mode_custom').addEventListener('click', function() { applyApiMode('custom'); });
 
     // 初始化模式
     if (customApiUrl) document.getElementById('custom_api_url').value = customApiUrl;
+    document.getElementById('codex_model').value = codexModel;
+    var effortEl = document.getElementById('codex_reasoning_effort');
+    for (var eo = 0; eo < effortEl.options.length; eo++) {
+      if (effortEl.options[eo].value === codexEffort) effortEl.selectedIndex = eo;
+    }
     applyApiMode(apiMode);
 
     // 初始化显示设置
@@ -1086,6 +1157,13 @@
         s.memory_markdown = memoryEl.value;
       var key = document.getElementById('api_key').value.trim();
       if (key.length > 0) s.api_key = key;
+      s.codex_model = document.getElementById('codex_model').value.trim();
+      s.codex_reasoning_effort =
+        document.getElementById('codex_reasoning_effort').value;
+      // Only send the login when the user actually pasted one; an empty box
+      // means "keep what the phone already stored".
+      var codexAuth = document.getElementById('codex_auth').value.trim();
+      if (codexAuth.length > 0) s.codex_auth = codexAuth;
       var ttsKey = document.getElementById('tts_api_key').value.trim();
       if (ttsKey.length > 0) s.tts_api_key = ttsKey;
       var todoistToken = document.getElementById('todoist_token').value.trim();
@@ -1201,6 +1279,22 @@
         setTimeout(function() { delKeyArmed = false; btn.textContent = 'Delete API Key'; }, 3000);
       } else {
         closeWith(buildSettings({ delete_key: true }));
+      }
+    });
+
+    // 解除 Codex 登录（两次点击确认，与其它破坏性操作一致）
+    var unlinkCodexArmed = false;
+    document.getElementById('unlink_codex').addEventListener('click', function() {
+      var btn = this;
+      if (!unlinkCodexArmed) {
+        unlinkCodexArmed = true;
+        btn.textContent = '⚠️ Tap again to confirm';
+        setTimeout(function() {
+          unlinkCodexArmed = false;
+          btn.textContent = 'Unlink Codex Login';
+        }, 3000);
+      } else {
+        closeWith(buildSettings({ delete_codex_auth: true }));
       }
     });
 

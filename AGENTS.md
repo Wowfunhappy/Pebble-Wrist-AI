@@ -49,6 +49,20 @@ the final PBW, not only `src/pkjs/pebble-js-app.js`.
   each retain up to 50; the watch snapshot contains 20 active + 10 archived.
   Wakeup allocation is seven strong-reminder slots plus one rolling Todoist sync slot.
 - Health and location are opt-in and must never be persisted into normal chat history.
+- Every LLM call goes through `llmChat()`. Do not add a fifth hand-rolled XHR; add
+  providers inside that function so chat, title, Timeline, Notes and Memory all
+  inherit them.
+- Codex mode targets `chatgpt.com/backend-api/codex/responses`, an undocumented
+  first-party endpoint. It requires a non-empty top-level `instructions`, only serves
+  `stream: true`, and is replayed from a finished SSE body because PebbleKit JS has no
+  streaming XHR. `store` stays `false`. Breakage here is expected; never let it change
+  the OpenRouter or Custom paths.
+- Codex credentials (`codex_access_token`, `codex_refresh_token`, `codex_account_id`,
+  `codex_token_expires_at`) live only in phone localStorage. They must never enter the
+  Config URL, chat history, Memory.md or a log line. Config only ever receives
+  `has_codex_auth`, `codex_expires_at` and `codex_can_refresh`.
+- Token refresh is single-flight. askAI fans out up to four parallel calls and
+  concurrent refreshes would invalidate each other's rotated refresh_token.
 - Memory.md must not store secrets, authentication data, financial identifiers or exact health samples.
 - Stable personal facts explicitly intended for long-term memory are Memory-only
   and must never create a shadow Note/TODO. Config edits use one
@@ -99,6 +113,10 @@ shasum -a 256 build/pebble-app.pbw
 Before release, also verify:
 
 - Config inline JavaScript parses and all static IDs are unique.
+- OpenRouter, Custom and Codex modes each answer, and switching between them in
+  Config does not strand the watch on a stale READY_STATUS.
+- A Codex access token that expires mid-session renews without user action, and a
+  server-side 401 triggers exactly one refresh-and-retry.
 - Notes multi-create, complete, reopen, delete and conversation restoration.
 - Direct named TODO fallback, Config Note deltas, and Random/fixed theme synchronization.
 - Timeline all-day, relative-time, multiple-event and linked-TODO behavior.
