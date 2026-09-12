@@ -265,8 +265,9 @@
          token renews the login on its own; re-paste the file if the status above says
          it lapsed. Treat the file like a password — it grants access to your ChatGPT
          account. This uses an undocumented ChatGPT endpoint that OpenAI does not
-         support for third-party clients and can change without notice. Web Search is
-         OpenRouter-only and is ignored in this mode.
+         support for third-party clients and can change without notice. Web Search
+         works here through Codex's own hosted search; if the backend ever refuses it,
+         Wrist AI answers without search rather than failing.
        </div>
        <div class="status warn" id="codex_model_warning"></div>
        <label style="margin-top:8px;display:block">Reasoning effort</label>

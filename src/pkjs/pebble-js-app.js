@@ -1732,6 +1732,26 @@ function codexModelComplaint(model) {
   return 'Pick a Codex model, not ' + model.split('/')[0] + '/...';
 }
 
+function webSearchEnabled() {
+  return getSetting('web_search_enabled', '1') === '1';
+}
+
+// Web search reaches the model differently per provider: an OpenRouter plugin,
+// or a hosted tool on the Codex Responses API, which the backend runs itself
+// and folds into the same response. A custom OpenAI-compatible endpoint gets
+// neither, since there is no portable way to ask for it.
+// Set false for the session if Codex ever rejects the tool, so one refusal
+// does not cost every later question an extra round trip.
+var codexWebSearchSupported = true;
+
+function codexWebSearchActive() {
+  return isCodexMode() && webSearchEnabled() && codexWebSearchSupported;
+}
+
+function webSearchActive() {
+  return (isOpenRouter() && webSearchEnabled()) || codexWebSearchActive();
+}
+
 function hasCredentials() {
   if (isCodexMode()) return getSetting('codex_access_token', '').length > 0;
   return getSetting('api_key', '').trim().length > 0;
@@ -1962,7 +1982,7 @@ function llmChat(options, onSuccess, onError) {
         onError(authError);
         return;
       }
-      codexChat(options, auth, false, onSuccess, onError);
+      codexChat(options, auth, {}, onSuccess, onError);
     });
     return;
   }
@@ -2140,7 +2160,11 @@ function codexErrorMessage(xhr) {
   return httpErrorMessage(xhr);
 }
 
-function codexChat(options, auth, isRetry, onSuccess, onError) {
+// flags carries what this attempt has already given up on, so neither recovery
+// can loop: { authRetried, toolsDropped }.
+function codexChat(options, auth, flags, onSuccess, onError) {
+  flags = flags || {};
+  var withTools = codexWebSearchActive() && !flags.toolsDropped;
   var xhr = new XMLHttpRequest();
   xhr.open('POST', CODEX_RESPONSES_URL, true);
   xhr.setRequestHeader('Content-Type', 'application/json');
@@ -2155,15 +2179,27 @@ function codexChat(options, auth, isRetry, onSuccess, onError) {
   xhr.onload = function() {
     // A token can be revoked before its `exp`; refresh once and retry rather
     // than making the user re-paste auth.json.
-    if (xhr.status === 401 && !isRetry) {
+    if (xhr.status === 401 && !flags.authRetried) {
       console.log('[Codex] 401, forcing token refresh');
       codexEnsureAuth(true, function(authError, fresh) {
         if (authError) {
           onError(authError);
           return;
         }
-        codexChat(options, fresh, true, onSuccess, onError);
+        codexChat(options, fresh, { authRetried: true,
+          toolsDropped: flags.toolsDropped }, onSuccess, onError);
       });
+      return;
+    }
+    // The hosted web_search tool is undocumented on this endpoint and may be
+    // refused. Rather than breaking every question for a search that was only
+    // ever a bonus, drop the tool and answer without it.
+    if (xhr.status >= 400 && withTools) {
+      console.log('[Codex] HTTP ' + xhr.status +
+        ' with web_search; retrying without it');
+      codexWebSearchSupported = false;
+      codexChat(options, auth, { authRetried: flags.authRetried,
+        toolsDropped: true }, onSuccess, onError);
       return;
     }
     if (xhr.status >= 400) {
@@ -2192,6 +2228,10 @@ function codexChat(options, auth, isRetry, onSuccess, onError) {
   };
   var effort = getSetting('codex_reasoning_effort', 'low');
   if (effort && effort !== 'default') body.reasoning = { effort: effort };
+  // Hosted tool: the backend runs the search and returns the result inside this
+  // same response, so there is no tool-call loop to drive. tool_choice is left
+  // alone deliberately — forcing a hosted tool is rejected.
+  if (withTools) body.tools = [{ type: 'web_search' }];
   xhr.send(safeJsonStringify(body));
 }
 
@@ -3122,7 +3162,7 @@ function askAI(question, contextText, onFinish) {
     '. For absolute timed requests use "time":"YYYY-MM-DDTHH:mm:ss' + currentTimezoneOffset() +
     '" (append this exact offset); a local time without ' + currentTimezoneOffset() + ' is invalid.';
   }
-  if (isOpenRouter() && getSetting('web_search_enabled', '1') === '1') {
+  if (webSearchActive()) {
     fullSystemMessage += '\n\nWeb search presentation rule: Use search sources to answer accurately, but never output URLs, domain names, Markdown links, source lists, or numbered citations. Summarize the useful information directly for a smartwatch screen and text-to-speech.';
   }
 
@@ -3136,8 +3176,9 @@ function askAI(question, contextText, onFinish) {
         body.provider = { allow_fallbacks: true };
         body.extra_body = { reasoning: { enabled: true } };
       }
-      // Web Search（仅 OpenRouter）：启用 OpenRouter 的 web 插件让模型联网搜索
-      if (isOpenRouter() && getSetting('web_search_enabled', '1') === '1') {
+      // Web Search（OpenRouter）：用 web 插件让模型联网搜索。
+      // Codex 模式走 codexChat 里的 hosted web_search tool。
+      if (isOpenRouter() && webSearchEnabled()) {
         body.plugins = [{ id: 'web' }];
       }
     }

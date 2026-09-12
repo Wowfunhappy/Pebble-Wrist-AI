@@ -55,6 +55,14 @@ the final PBW, not only `src/pkjs/pebble-js-app.js`.
 - Every LLM call goes through `llmChat()`. Do not add a fifth hand-rolled XHR; add
   providers inside that function so chat, title, Timeline, Notes and Memory all
   inherit them.
+- Web search is per-provider: an OpenRouter `plugins` entry, or a hosted
+  `web_search` tool on Codex. Never force a hosted tool via `tool_choice` — the
+  backend rejects that. A Codex 4xx with tools attached retries once without them
+  and disables them for the session, so an undocumented tool cannot take the whole
+  mode down with it.
+- The watch abandons a request at `THINKING_TIMEOUT_MS` (90s), so no phone-side
+  timeout may exceed it; askAI's 80s already sits just under. Web search has to
+  fit that budget rather than extend it.
 - Codex mode targets `chatgpt.com/backend-api/codex/responses`, an undocumented
   first-party endpoint. It requires a non-empty top-level `instructions`, only serves
   `stream: true`, and is replayed from a finished SSE body because PebbleKit JS has no

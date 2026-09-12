@@ -30,7 +30,7 @@ Works with OpenRouter (GPT, Claude, Gemini, Gemma, Llama, Qwen, and more), a Cha
 - **Strong Local Reminders** — Explicit strong-reminder requests use one of seven persistent watch Wakeup slots and a longer vibration pattern; the eighth Wakeup slot is reserved for optional Todoist synchronization.
 - **Timeline Reminders** — Create, update, and remove timed reminders, date-only all-day events, and batches of local Pebble Timeline events through natural-language conversations and Todoist synchronization. Requires a compatible Core Devices companion app. *Beta.*
 - **Location Context** — Optionally include your approximate GPS location (reverse-geocoded to city name) in the AI's context. Off by default. *Beta.*
-- **Web Search** — Optionally let models search the web for up-to-date information (OpenRouter only, on by default). Links and source URLs are removed from watch replies and TTS. *Beta.*
+- **Web Search** — Optionally let models search the web for up-to-date information (OpenRouter and Codex, on by default; not available on custom endpoints). Links and source URLs are removed from watch replies and TTS. *Beta.*
 - **Cross-Platform** — Supports all Pebble hardware including Pebble Time Round (Chalk) with fully optimized centered layouts.
 - **Serverless & Private** — Your phone talks directly to the configured AI, TTS, and optional Todoist APIs. Conversations and integration mappings are stored locally in the Pebble companion app. No Wrist AI backend is required.
 - **Organized Config Page** — Warm orange-and-purple settings cards group connection, AI behavior, watch experience, health/planning, TTS, conversations, and destructive actions.
@@ -115,7 +115,10 @@ login dies at its expiry. Settings shows which of the two you have.
   are unaffected.
 - Usage counts against the plan's Codex limits. A depleted plan reports
   `Codex plan limit reached` on the watch.
-- Web Search is an OpenRouter plugin and is ignored in Codex mode.
+- Web Search works in Codex mode through the backend's own hosted search tool,
+  under the same toggle as OpenRouter. Because that tool is undocumented on this
+  endpoint, a refusal is not fatal: Wrist AI drops the tool, answers without it,
+  and stops asking for the rest of the session.
 - Codex uses the same **Models** list as every other provider, so switching models
   from the watch works as usual. It needs a bare slug though: the backend rejects
   OpenRouter-style `vendor/model` slugs. Settings warns when the active model cannot
