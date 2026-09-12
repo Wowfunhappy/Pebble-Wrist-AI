@@ -1689,7 +1689,6 @@ function extractMemoryUpdates(text) {
 // OpenAI documents as supported. Treat breakage in this mode as expected.
 // ═══════════════════════════════════════════════════════════════════════════════
 var DEFAULT_MODEL = 'google/gemma-4-31b-it';
-var DEFAULT_CODEX_MODEL = 'gpt-5.6-terra';
 var CODEX_RESPONSES_URL = 'https://chatgpt.com/backend-api/codex/responses';
 var CODEX_TOKEN_URL = 'https://auth.openai.com/oauth/token';
 var CODEX_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann';
@@ -1720,14 +1719,17 @@ function getApiEndpoint() {
   return 'https://openrouter.ai/api/v1/chat/completions';
 }
 
-// Codex slugs carry no vendor prefix ("gpt-5.6-terra"); OpenRouter slugs always
-// do ("openai/gpt-5-mini"). Both modes share one model list and one watch menu,
-// so guard against posting an OpenRouter slug to Codex, which 400s.
 function getActiveModel() {
-  var model = getSetting('model', DEFAULT_MODEL);
-  if (isCodexMode() && model.indexOf('/') !== -1)
-    return getSetting('codex_model', DEFAULT_CODEX_MODEL);
-  return model;
+  return getSetting('model', DEFAULT_MODEL);
+}
+
+// Codex slugs carry no vendor prefix ("gpt-5.6-terra"); OpenRouter slugs always
+// do ("openai/gpt-5-mini"). Every provider shares the one model list and the one
+// watch menu, so a mode switch can leave the wrong kind of slug selected. Say so
+// rather than silently querying a different model than the watch is showing.
+function codexModelComplaint(model) {
+  if (model.indexOf('/') === -1) return '';
+  return 'Pick a Codex model, not ' + model.split('/')[0] + '/...';
 }
 
 function hasCredentials() {
@@ -1950,6 +1952,11 @@ function codexEnsureAuth(force, callback) {
 // ═══════════════════════════════════════════════════════════════════════════════
 function llmChat(options, onSuccess, onError) {
   if (isCodexMode()) {
+    var complaint = codexModelComplaint(getActiveModel());
+    if (complaint) {
+      onError(complaint);
+      return;
+    }
     codexEnsureAuth(false, function(authError, auth) {
       if (authError) {
         onError(authError);
@@ -4266,8 +4273,6 @@ Pebble.addEventListener('showConfiguration', function() {
     + '&codex_expires_at=' + encodeURIComponent(
         getSetting('codex_token_expires_at', '0'))
     + '&codex_can_refresh=' + (getSetting('codex_refresh_token', '') ? '1' : '0')
-    + '&codex_model=' + encodeURIComponent(
-        getSetting('codex_model', DEFAULT_CODEX_MODEL))
     + '&codex_reasoning_effort=' + encodeURIComponent(
         getSetting('codex_reasoning_effort', 'low'))
     + '&font_size=' + encodeURIComponent(getSetting('font_size', '0'))
@@ -4337,10 +4342,6 @@ Pebble.addEventListener('webviewclosed', function(e) {
       } else {
         console.log('[Codex] Config sent an unusable login payload');
       }
-    }
-    if (typeof settings.codex_model === 'string' &&
-        settings.codex_model.trim().length > 0) {
-      localStorage.setItem('codex_model', settings.codex_model.trim());
     }
     if (typeof settings.codex_reasoning_effort === 'string' &&
         settings.codex_reasoning_effort.length > 0) {

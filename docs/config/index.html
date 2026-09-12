@@ -268,9 +268,7 @@
          support for third-party clients and can change without notice. Web Search is
          OpenRouter-only and is ignored in this mode.
        </div>
-       <label style="margin-top:8px;display:block">Codex model</label>
-       <input type="text" id="codex_model" placeholder="gpt-5.6-terra">
-       <div class="hint">Any slug your Codex plan accepts, such as gpt-5.6-terra, gpt-5.6-sol or gpt-6-astra. Used whenever the model picked on the watch is an OpenRouter-style vendor/model slug.</div>
+       <div class="status warn" id="codex_model_warning"></div>
        <label style="margin-top:8px;display:block">Reasoning effort</label>
        <select id="codex_reasoning_effort">
          <option value="minimal">Minimal · fastest</option>
@@ -295,7 +293,7 @@
         <button class="model-add-btn" id="model_add" title="Add model">+</button>
       </div>
       <ul class="model-list" id="model_list_el"></ul>
-      <div class="hint">The active model handles requests. Up to five models are available from the watch menu.</div>
+      <div class="hint" id="model_hint">The active model handles requests. Up to five models are available from the watch menu.</div>
     </div>
     </div>
   </details>
@@ -650,7 +648,6 @@
     var hasCodexAuth = getParam('has_codex_auth') === '1';
     var codexCanRefresh = getParam('codex_can_refresh') === '1';
     var codexExpiresAt = parseInt(getParam('codex_expires_at'), 10) || 0;
-    var codexModel = getParam('codex_model') || 'gpt-5.6-terra';
     var codexEffort = getParam('codex_reasoning_effort') || 'low';
 
     // 显示设置
@@ -740,6 +737,9 @@
         keyWrap.style.display = 'block';
         keyInput.placeholder = hasKey ? 'Leave blank to keep current' : 'sk-or-v1-xxxx...';
       }
+      // Hoisted, and it only reads static markup plus apiMode/currentModel,
+      // so this is safe on the init call before the model list is rendered.
+      renderModelGuidance();
     }
 
     document.getElementById('mode_openrouter').addEventListener('click', function() { applyApiMode('openrouter'); });
@@ -748,7 +748,6 @@
 
     // 初始化模式
     if (customApiUrl) document.getElementById('custom_api_url').value = customApiUrl;
-    document.getElementById('codex_model').value = codexModel;
     var effortEl = document.getElementById('codex_reasoning_effort');
     for (var eo = 0; eo < effortEl.options.length; eo++) {
       if (effortEl.options[eo].value === codexEffort) effortEl.selectedIndex = eo;
@@ -949,7 +948,34 @@
       modelListEl.innerHTML = html;
     }
 
-    renderModelList();
+    // Every provider shares this one list. Codex rejects vendor-prefixed slugs,
+    // so steer the input and flag an active model that cannot work in this mode
+    // here in Config, rather than letting the watch collect the error.
+    function renderModelGuidance() {
+      var input = document.getElementById('model_input');
+      var hint = document.getElementById('model_hint');
+      var warning = document.getElementById('codex_model_warning');
+      var codex = (apiMode === 'codex');
+      input.placeholder = codex ? 'e.g. gpt-5.6-terra' : 'e.g. openai/gpt-5-mini';
+      hint.textContent = codex ?
+        'The active model handles requests. Up to five are available from the watch menu. Codex needs a bare slug your plan accepts — gpt-5.6-terra, gpt-5.6-sol, gpt-6-astra — never a vendor/model slug.' :
+        'The active model handles requests. Up to five models are available from the watch menu.';
+      if (codex && currentModel.indexOf('/') !== -1) {
+        warning.textContent = 'Active model "' + currentModel + '" is an OpenRouter-style slug. ' +
+          'Add a Codex model above and switch to it, or requests will fail.';
+        warning.style.display = 'block';
+      } else {
+        warning.textContent = '';
+        warning.style.display = 'none';
+      }
+    }
+
+    function refreshModels() {
+      renderModelList();
+      renderModelGuidance();
+    }
+
+    refreshModels();
 
     // 添加模型
     document.getElementById('model_add').addEventListener('click', function() {
@@ -966,7 +992,7 @@
       }
       modelList.push(name);
       input.value = '';
-      renderModelList();
+      refreshModels();
     });
 
     // 模型列表点击事件（切换/删除）
@@ -977,14 +1003,14 @@
 
       if (btn.classList.contains('model-btn-switch')) {
         currentModel = modelList[idx];
-        renderModelList();
+        refreshModels();
       } else if (btn.classList.contains('model-btn-delete')) {
         var wasActive = (modelList[idx] === currentModel);
         modelList.splice(idx, 1);
         if (wasActive && modelList.length > 0) {
           currentModel = modelList[0];
         }
-        renderModelList();
+        refreshModels();
       }
     });
 
@@ -1157,7 +1183,6 @@
         s.memory_markdown = memoryEl.value;
       var key = document.getElementById('api_key').value.trim();
       if (key.length > 0) s.api_key = key;
-      s.codex_model = document.getElementById('codex_model').value.trim();
       s.codex_reasoning_effort =
         document.getElementById('codex_reasoning_effort').value;
       // Only send the login when the user actually pasted one; an empty box

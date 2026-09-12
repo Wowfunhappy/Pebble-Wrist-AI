@@ -92,9 +92,9 @@ computer.
    the whole file.
 3. In Wrist AI settings, choose **Codex** under API Provider and paste the file into
    the Codex login box.
-4. Set **Codex model** to a slug your plan accepts — for example `gpt-5.6-terra`,
-   `gpt-5.6-sol` or `gpt-6-astra`. Leave **Reasoning effort** on Low; a watch wants a
-   fast short answer, and higher settings mostly add latency.
+4. Add a Codex model to the usual **Models** list — for example `gpt-5.6-terra`,
+   `gpt-5.6-sol` or `gpt-6-astra` — and switch to it. Leave **Reasoning effort** on
+   Low; a watch wants a fast short answer, and higher settings mostly add latency.
 5. Save. The watch shows Ready as soon as the login is stored.
 
 The access token in `auth.json` is short-lived. Wrist AI stores the refresh token
@@ -116,9 +116,11 @@ login dies at its expiry. Settings shows which of the two you have.
 - Usage counts against the plan's Codex limits. A depleted plan reports
   `Codex plan limit reached` on the watch.
 - Web Search is an OpenRouter plugin and is ignored in Codex mode.
-- If the model chosen from the watch menu is an OpenRouter-style `vendor/model` slug,
-  Codex mode substitutes the **Codex model** slug from settings, since the Codex
-  backend rejects prefixed slugs.
+- Codex uses the same **Models** list as every other provider, so switching models
+  from the watch works as usual. It needs a bare slug though: the backend rejects
+  OpenRouter-style `vendor/model` slugs. Settings warns when the active model cannot
+  work in this mode, and the watch says `Pick a Codex model, not vendor/...` rather
+  than quietly answering from a different model than the one on screen.
 
 ---
 
